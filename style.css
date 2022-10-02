@@ -43,7 +43,7 @@ svg {
 }
 
 .map path {
-  fill: #87B687;
+  fill: transparent;
   stroke: #777;
 }
 
@@ -59,4 +59,9 @@ svg {
 .circles path {
   fill: none;
   stroke: #aaa;
+}
+
+.night path {
+  fill: rgba(238, 238, 238, .5);
+  stroke: #eee;
 }

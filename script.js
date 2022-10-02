@@ -26,6 +26,15 @@ let circles = [
   [180, -70], [180, -35], [180, 35], [180, 70],
 ];
 let geoCircle = d3.geoCircle().radius(10).precision(1);
+const antipode = ([longitude, latitude]) => [longitude + 180, -latitude];
+const now = new Date;
+const day = new Date(+now).setUTCHours(0, 0, 0, 0);
+const t = solar.century(now);
+const longitude = (day - now) / 864e5 * 360 - 180;
+const sun = () => {
+  return [longitude - solar.equationOfTime(t) / 4, solar.declination(t)];
+}
+const night = d3.geoCircle().radius(90).center(antipode(sun()));
 
 let state = {
   type: 'Equirectangular',
@@ -105,6 +114,10 @@ function update() {
   u.enter()
     .append('path')
     .merge(u)
+    .attr('d', geoGenerator);
+
+  d3.select('.night path')
+    .datum(night())
     .attr('d', geoGenerator);
 }
 

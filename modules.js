@@ -1,0 +1,1 @@
+const solar = require("./scripts/solar-calculator.min.js");
