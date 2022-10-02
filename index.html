@@ -51,15 +51,17 @@
     </div>
 
     <svg width="900px" height="500px">
-      <g class="graticule">
-        <path></path>
+      <g class="svg-group">
+        <g class="graticule">
+          <path></path>
+        </g>
+        <g class="circles"></g>
+        <g class="map"></g>
+        <g class="night">
+          <path></path>
+        </g>
+        <circle class="projection-center" r="4"></circle>
       </g>
-      <g class="circles"></g>
-      <g class="map"></g>
-      <g class="night">
-        <path></path>
-      </g>
-      <circle class="projection-center" r="4"></circle>
     </svg>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.2.0/d3.min.js"></script>
     <script type="text/javascript" src="./scripts/solar-calculator.min.js"></script>
