@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/smlee/d3-geo-practice#readme",
   "dependencies": {
-    "solar-calculator": "^0.3.0"
+    "solar-calculator": "^0.3.0",
+    "versor": "^0.2.0"
   }
 }

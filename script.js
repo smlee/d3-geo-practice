@@ -1,4 +1,17 @@
 let geojson;
+let width = 900;
+let height = 450;
+let state = {
+  type: 'Equirectangular',
+  scale: 120,
+  translateX: width / 2,
+  translateY: height / 2,
+  centerLon: 0,
+  centerLat: 0,
+  rotateLambda: 0.1,
+  rotatePhi: 0,
+  rotateGamma: 0
+}
 let projectionTypes = [
   'AzimuthalEqualArea',
   'AzimuthalEquidistant',
@@ -14,7 +27,7 @@ let projectionTypes = [
   'TransverseMercator'
 ];
 
-let projection;
+let projection = d3['geo' + state.type]().precision(0.1).scale(state.scale).center([0, 0]).translate([ state.translateX, state.translateY]);;
 let geoGenerator = d3.geoPath()
   .projection(projection);
 
@@ -25,6 +38,7 @@ let circles = [
   [0, -70], [0, -35], [0, 35], [0, 70],
   [180, -70], [180, -35], [180, 35], [180, 70],
 ];
+
 let geoCircle = d3.geoCircle().radius(10).precision(1);
 const antipode = ([longitude, latitude]) => [longitude + 180, -latitude];
 const now = new Date;
@@ -36,19 +50,9 @@ const sun = () => {
 }
 const night = d3.geoCircle().radius(90).center(antipode(sun()));
 
-let state = {
-  type: 'Equirectangular',
-  scale: 120,
-  translateX: 450,
-  translateY: 250,
-  centerLon: 0,
-  centerLat: 0,
-  rotateLambda: 0.1,
-  rotatePhi: 0,
-  rotateGamma: 0
-}
+let scaleExtent = [1, 8];
 
-projection = d3['geo' + state.type]().precision(0.1);
+projection = d3['geo' + state.type]().precision(0.1).scale(state.scale).center([0, 0]).translate([ state.translateX, state.translateY]);
 
 function initMenu() {
   d3.select('#menu')
@@ -60,7 +64,8 @@ function initMenu() {
       update()
     });
 
-  d3.select('#menu .projection-type select')
+  const projectionSelect = d3.select('#menu .projection-type select');
+  projectionSelect
     .on('change', function (d) {
       state.type = this.options[this.selectedIndex].value;
       update()
@@ -71,71 +76,78 @@ function initMenu() {
     .append('option')
     .attr('value', function (d) { return d; })
     .text(function (d) { return d; });
+
+    projectionSelect.node().value = 'Equirectangular';
 }
 
-function zoom(_projection, {
-  scale = 0,
-  scaleExtent = [0.8, 8]
-} = {}) {
-  let v0, q0, r0, a0, tl;
-  console.log(_projection);
-  scale = _projection['_scale'] === undefined ? (_projection['_scale'] = _projection.scale()) : _projection['_scale'];
+let v0, q0, r0, a0, tl, y0, y1;
 
-  const zoom = d3.zoom()
-    .scaleExtent(scaleExtent.map(x => x * scale))
-    .on("start", onZoomStart)
-    .on("zoom", onZoomEnd);
+const zoom = d3.zoom()
+  .scaleExtent(scaleExtent.map(x => x * state.scale))
+  .on("start", onZoomStart)
+  .on("zoom", onZoomEnd);
 
-  function point(event, that) {
-    const t = d3.pointers(event, that);
+function point(event, that) {
+  const t = d3.pointers(event, that);
 
-    if (t.length !== tl) {
-      tl = t.length;
-      if (tl > 1) a0 = Math.atan2(t[1][1] - t[0][1], t[1][0] - t[0][0]);
-      onZoomStart.call(that, event);
-    }
-
-    return tl > 1
-      ? [
-        d3.mean(t, p => p[0]),
-        d3.mean(t, p => p[1]),
-        Math.atan2(t[1][1] - t[0][1], t[1][0] - t[0][0])
-      ]
-      : t[0];
+  if (t.length !== tl) {
+    tl = t.length;
+    if (tl > 1) a0 = Math.atan2(t[1][1] - t[0][1], t[1][0] - t[0][0]);
+    onZoomStart.call(that, event);
   }
 
-  function onZoomStart(event) {
-    v0 = versor.cartesian(projection.invert(point(event, this)));
-    q0 = versor((r0 = projection.rotate()));
+  return tl > 1
+    ? [
+      d3.mean(t, p => p[0]),
+      d3.mean(t, p => p[1]),
+      Math.atan2(t[1][1] - t[0][1], t[1][0] - t[0][0])
+    ]
+    : t[0];
+}
+
+function onZoomStart(event) { 
+  y0 = state.translateY;
+  y1 = point(event, this)[1];
+  v0 = versor.cartesian(projection.invert(point(event, this)));
+  q0 = versor((r0 = projection.rotate()));
+}
+
+function onZoomEnd(event) {
+  console.log(event);
+  state.scale = event.transform.k;
+  document.getElementById('scale').value = state.scale;
+  projection.scale(event.transform.k);
+  const pt = point(event, this);
+  const v1 = versor.cartesian(projection.rotate(r0).invert(pt));
+  const delta = versor.delta(v0, v1);
+  let q1 = versor.multiply(q0, delta);
+  const yChange = pt[1] - y1;
+  state.translateY = y0 + yChange < 0 ? 0 : y0 + yChange > height ? height : y0 + yChange;
+  document.getElementById('translateY').value = state.translateY;
+  
+  // For multitouch, compose with a rotation around the axis.
+  if (pt[2]) {
+    const d = (pt[2] - a0) / 2;
+    const s = -Math.sin(d);
+    const c = Math.sign(Math.cos(d));
+    q1 = versor.multiply([Math.sqrt(1 - s * s), 0, 0, c * s], q1);
   }
+  
+  const rotateLambda = versor.rotation(q1)[0];
+  state.rotateLambda = rotateLambda;
+  document.getElementById('rotateLambda').value = state.rotateLambda;
+  projection.rotate(versor.rotation(q1));
 
-  function onZoomEnd(event) {
-    projection.scale(event.transform.k);
-    const pt = point(event, this);
-    const v1 = versor.cartesian(projection.rotate(r0).invert(pt));
-    const delta = versor.delta(v0, v1);
-    let q1 = versor.multiply(q0, delta);
-
-    // For multitouch, compose with a rotation around the axis.
-    if (pt[2]) {
-      const d = (pt[2] - a0) / 2;
-      const s = -Math.sin(d);
-      const c = Math.sign(Math.cos(d));
-      q1 = versor.multiply([Math.sqrt(1 - s * s), 0, 0, c * s], q1);
-    }
-
-    projection.rotate(versor.rotation(q1));
-
-    // In vicinity of the antipode (unstable) of q0, restart.
-    if (delta[0] < 0.7) {
-      onZoomStart.call(this, event);
-    }
+  // In vicinity of the antipode (unstable) of q0, restart.
+  if (delta[0] < 0.7) {
+    onZoomStart.call(this, event);
   }
+  update();
 }
 
 function update() {
   // Update projection
-  projection = d3['geo' + state.type]().precision(0.1)
+  projection = d3['geo' + state.type]().precision(0.1).scale(state.scale).center([0, 0]).translate([ state.translateX, state.translateY]);
   geoGenerator.projection(projection);
 
   projection
@@ -187,10 +199,11 @@ function update() {
 d3.json('https://gist.githubusercontent.com/d3indepth/f28e1c3a99ea6d84986f35ac8646fac7/raw/c58cede8dab4673c91a3db702d50f7447b373d98/ne_110m_land.json')
   .then(function (json) {
     geojson = json;
-    // if (!projection) {
-    //   projection = d3['geo' + state.type]();
-    // }
+    const transform = d3.zoomIdentity.translate(width / 2, height / 2).scale(120);
+    d3.select('#world-map')
+    .attr("viewBox", [0, 0, width, height])
+    .call(zoom)
+    // .call(zoom.transform, transform);
     initMenu();
     update();
-    d3.select('#world-map').call(zoom);
   });
