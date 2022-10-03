@@ -113,17 +113,18 @@ function onZoomStart(event) {
 }
 
 function onZoomEnd(event) {
-  console.log(event);
-  state.scale = event.transform.k;
+  state.scale = Math.round(event.transform.k);
   document.getElementById('scale').value = state.scale;
+  document.getElementById('scaleLabel').innerHTML = state.scale;
   projection.scale(event.transform.k);
   const pt = point(event, this);
   const v1 = versor.cartesian(projection.rotate(r0).invert(pt));
   const delta = versor.delta(v0, v1);
   let q1 = versor.multiply(q0, delta);
   const yChange = pt[1] - y1;
-  state.translateY = y0 + yChange < 0 ? 0 : y0 + yChange > height ? height : y0 + yChange;
+  state.translateY = y0 + yChange < 0 ? 0 : y0 + yChange > height ? height : Math.round(y0 + yChange);
   document.getElementById('translateY').value = state.translateY;
+  document.getElementById('yLabel').innerHTML = state.translateY;
   
   // For multitouch, compose with a rotation around the axis.
   if (pt[2]) {
@@ -134,8 +135,9 @@ function onZoomEnd(event) {
   }
   
   const rotateLambda = versor.rotation(q1)[0];
-  state.rotateLambda = rotateLambda;
+  state.rotateLambda = Math.round(rotateLambda);
   document.getElementById('rotateLambda').value = state.rotateLambda;
+  document.getElementById('lambdaLabel').innerHTML = state.rotateLambda;
   projection.rotate(versor.rotation(q1));
 
   // In vicinity of the antipode (unstable) of q0, restart.
